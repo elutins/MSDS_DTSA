@@ -1,6 +1,9 @@
-### Project Background
+## DTSA 5510 Final Project
 
-I have gathered data spanning several NHL seasons with the aim of trying to cluster individual NHL players into their respective positions, given game-by-game statistics for each player. There are four possible positions a player can assume; **Right Wing (RW)**, **Left Wing (LW)**, **Centerman (C)**, or **Defenseman (D)**. For the sake of this analysis I am excluding goalies, as it would be fairly trivial to predict which player's are goalies based on their game statistics. 
+
+### Project Background & Data Explanation
+
+This project required gathering and preprocessing data from an external source online, and then performing clustering analysis on the dataset. I have gathered data spanning several NHL seasons with the aim of trying to cluster individual NHL players into their respective positions, given game-by-game statistics for each player. There are four possible positions a player can assume; **Right Wing (RW)**, **Left Wing (LW)**, **Centerman (C)**, or **Defenseman (D)**. For the sake of this analysis I am excluding goalies, as it would be fairly trivial to predict which player's are goalies based on their game statistics. 
 
 Data statistics included but are not limited to the time player spent on the ice per game, shots taken per game, faceoffs taken per game, and the player's height. I will build two different clustering models with `k=4` clusters, and evaluate model performance based on the homogeneity of each model cluster.
 
