@@ -1,0 +1,118 @@
+---
+title: "NYPD Project Rmd"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-05-16"
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Project Overview
+
+This Rmd file contains the analysis done using the [NYPD shooting incident dataset](https://catalog.data.gov/dataset/nypd-shooting-incident-data-historic). The data contains victim, suspect, and location related information for each shooting incident that occurred in NYC from 2006-2022.
+
+### Import, Tidy and Transform Data
+
+the data has been previously downloaded and saved to a local file system
+
+```{r importing, echo = FALSE}
+library(tidyverse)
+library(lubridate)
+
+data = read_csv("NYPD_Shooting_Incident_Data__Historic_.csv")
+```
+
+Below I am converting the original `OCCUR_DATE` to a proper date field, extracting the year from the OCCUR_DATE, and also eliminating the Latitude and Longitude fields from the dataframe as I will not be using those fields in my analysis.
+
+```{r formatting1}
+data = data %>% 
+        mutate(OCCUR_DATE = mdy(OCCUR_DATE), OCCUR_YEAR = year(OCCUR_DATE)) %>%
+        select(-c(Latitude, Longitude, Lon_Lat))
+```
+
+Additionally, I want to converted BORO, PERP_SEX, and VIC_SEX to factors in order to enhance my analysis
+
+```{r formatting2}
+data$BORO = as.factor(data$BORO)
+data$PERP_SEX = as.factor(data$PERP_SEX)
+data$VIC_SEX = as.factor(data$VIC_SEX)
+```
+
+### Visualizing/Analyzing the data
+
+Grouping by BORO and year, I want to show the number of incidents in each boro over time
+
+```{r plot1}
+data_shootings_per_boro = data %>%
+  group_by(BORO, OCCUR_YEAR) %>%
+  summarise(total_shootings = n())
+
+data_shootings_per_boro %>%
+  ggplot(aes(x=OCCUR_YEAR, y=total_shootings)) +
+  geom_line(aes(color=BORO)) +
+  geom_point(aes(color=BORO)) +
+  labs(title="shootings per NYC Boro over time", y="number of shootings", x = NULL)
+  
+summary(data_shootings_per_boro)
+```
+
+Grouping by boro and perp age group, the number of incidents per age group in each boro
+
+```{r plot2}
+data_shootings_per_age_group = data %>%
+  group_by(BORO, PERP_AGE_GROUP) %>%
+  summarise(total_shootings = n())
+  
+data_shootings_per_age_group %>%
+  drop_na(PERP_AGE_GROUP) %>%
+  filter(PERP_AGE_GROUP != "UNKNOWN") %>%
+  filter(PERP_AGE_GROUP != "(null)") %>%
+  filter(PERP_AGE_GROUP != "224") %>%
+  filter(PERP_AGE_GROUP != "1020") %>%
+  filter(PERP_AGE_GROUP != "940") %>%
+  ggplot(aes(x=PERP_AGE_GROUP, y=total_shootings, fill=BORO)) + 
+  geom_bar(stat = "identity", position="dodge") + 
+  labs(title="Shootings by Perp Age Group", x="age group", y="total shootings")
+  
+summary(data_shootings_per_age_group)
+```
+
+
+### Modeling the Data
+
+I will build a simple linear model to predict if the shooting incident resulted in a murder, based on the `STATISTICAL_MURDER_FLAG` field. In order to do so, I am creating a numeric column of PERP_AGE based on the pre-existing `PERP_AGE_GROUP` column.
+
+```{r formatting3}       
+data$STATISTICAL_MURDER_FLAG = as.numeric(data$STATISTICAL_MURDER_FLAG)
+
+data$PERP_AGE_NUMERIC = with(data, 
+                              ifelse(PERP_AGE_GROUP == "<18", 18,
++                               ifelse(PERP_AGE_GROUP == "18-24", 21,
++                                 ifelse(PERP_AGE_GROUP == "25-44", 35.5,
++                                   ifelse(PERP_AGE_GROUP == "45-64", 54.5,
++                                     ifelse(PERP_AGE_GROUP == "65+", 65, 0))))))
+```
+
+```{r model}
+model_data = data %>%
+              filter(!is.na(PERP_AGE_NUMERIC))
+              
+mod = lm(STATISTICAL_MURDER_FLAG ~ BORO + PERP_AGE_NUMERIC + OCCUR_YEAR, data=model_data)
+summary(mod)
+```
+
+From the above summary output, we can see that the newly formed variable `PERP_AGE_NUMERIC` is statistically significant with a `p_value = 2e-16`.
+
+```{r plot4}
+data_murders_by_boro_perp_age = data %>%
+  group_by(BORO, PERP_AGE_GROUP) %>%
+  summarise(murders_per_shooting = mean(STATISTICAL_MURDER_FLAG))
+```
+
+
+### Important Note on Bias
+
+Personal bias was introduced into the model when I filtered out shootings with a NULL perp age group. This accounted for \~ 1/3 of the dataset, and thus filtering out a large portion of records that could have otherwise affected the impact on the response. Bias was also introduced by only accounting for the shooting year, and not perhaps the month or quarter of the calendar year. With only the year accounted for, we cannot capture any seasonal trends in shooting incidents.
