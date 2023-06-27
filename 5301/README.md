@@ -1,3 +1,3 @@
-### Final Project Video 
+### Final Project R Markdown  
 
-This subrepo contains the final project video for DTSA 5301
+This subrepo contains the final project R markdown file for DTSA 5301
